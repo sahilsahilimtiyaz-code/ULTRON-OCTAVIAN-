@@ -1,8 +1,8 @@
 /**
- * Circular HUD gauge (SVG) — chrome ring segments + red progress arc + ticks,
- * animated on load. Pure SVG, no canvas cost.
+ * Circular HUD gauge (SVG) — hairline track, crimson progress arc, micro ticks.
+ * Animated on load. Pure SVG, no canvas cost.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 interface GaugeProps {
   value: number; // 0..100
@@ -29,20 +29,23 @@ export default function Gauge({ value, size, caption, sublabel, sublabelClass }:
   const [shown, setShown] = useState(0);
   const target = useRef(value);
   target.current = value;
+  const gradId = `g-${useId().replace(/[:]/g, '')}`;
 
   useEffect(() => {
     let raf = 0;
-    let v = 0;
-    const step = () => {
-      v += (target.current - v) * 0.08 + 0.4;
-      if (v >= target.current) v = target.current;
-      setShown(v);
-      if (v < target.current) raf = requestAnimationFrame(step);
+    let startTs: number | null = null;
+    const duration = 1100;
+    const step = (now: number) => {
+      if (startTs === null) startTs = now;
+      const p = Math.min(1, (now - startTs) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setShown(target.current * eased);
+      if (p < 1) raf = requestAnimationFrame(step);
     };
-    const delay = 350 + Math.random() * 250;
     const to = setTimeout(() => {
+      setShown(0);
       raf = requestAnimationFrame(step);
-    }, delay);
+    }, 240);
     return () => {
       clearTimeout(to);
       cancelAnimationFrame(raf);
@@ -51,60 +54,84 @@ export default function Gauge({ value, size, caption, sublabel, sublabelClass }:
 
   const s = size;
   const c = s / 2;
-  const rTrack = c - s * 0.1;
-  const rProg = rTrack - s * 0.045;
-  const rTicks = c - s * 0.055;
+  const rTrack = c - s * 0.09;
+  const rProg = rTrack;
+  const rTicks = c - s * 0.045;
   const frac = Math.max(0, Math.min(1, shown / 100));
   const a1 = START + SWEEP * frac;
 
   const ticks = [];
-  for (let i = 0; i <= 30; i++) {
-    const a = START + (SWEEP * i) / 30;
-    const long = i % 5 === 0;
-    const r0 = rTicks - (long ? s * 0.05 : s * 0.025);
+  for (let i = 0; i <= 24; i++) {
+    const a = START + (SWEEP * i) / 24;
+    const long = i % 4 === 0;
+    const r0 = rTicks - (long ? s * 0.045 : s * 0.022);
     const x0 = c + r0 * Math.cos(a);
     const y0 = c + r0 * Math.sin(a);
     const x1 = c + rTicks * Math.cos(a);
     const y1 = c + rTicks * Math.sin(a);
-    ticks.push(<line key={i} x1={x0} y1={y0} x2={x1} y2={y1} stroke={long ? '#5b6470' : '#333a44'} strokeWidth={long ? 1.4 : 0.8} />);
+    ticks.push(
+      <line
+        key={i}
+        x1={x0}
+        y1={y0}
+        x2={x1}
+        y2={y1}
+        stroke={long ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.14)'}
+        strokeWidth={long ? 1.1 : 0.7}
+        strokeLinecap="round"
+      />,
+    );
   }
 
   return (
     <div className="gauge-wrap">
       <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} role="img" aria-label={`${Math.round(shown)} percent`}>
-        {/* dark base disc */}
-        <circle cx={c} cy={c} r={rTrack - s * 0.02} fill="#0b0e15" stroke="#20242c" strokeWidth="1" />
-        {/* chrome ring segments */}
-        <path d={arcPath(rTrack, START + SWEEP * 0.52, START + SWEEP * 0.78, c, c)} fill="none" stroke="#c8cdd6" strokeWidth={s * 0.028} strokeLinecap="round" opacity="0.9" />
-        <path d={arcPath(rTrack, START + SWEEP * 0.86, START + SWEEP * 0.98, c, c)} fill="none" stroke="#8d939e" strokeWidth={s * 0.028} strokeLinecap="round" opacity="0.7" />
-        {/* faint full track */}
-        <path d={arcPath(rProg, START, START + SWEEP, c, c)} fill="none" stroke="#262b34" strokeWidth={s * 0.05} strokeLinecap="round" />
-        {/* red progress */}
-        {frac > 0.002 && (
-          <path d={arcPath(rProg, START, a1, c, c)} fill="none" stroke="url(#gg)" strokeWidth={s * 0.05} strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 4px rgba(255,32,56,.7))' }} />
-        )}
         <defs>
-          <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#ff5c6e" />
-            <stop offset="1" stopColor="#e0182b" />
+          <linearGradient id={gradId} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stopColor="#b3132a" />
+            <stop offset="0.55" stopColor="#ff2f4a" />
+            <stop offset="1" stopColor="#ff8d9b" />
           </linearGradient>
         </defs>
-        {/* ticks */}
+
+        {/* track */}
+        <path d={arcPath(rProg, START, START + SWEEP, c, c)} fill="none" stroke="rgba(255,255,255,0.075)" strokeWidth={s * 0.032} strokeLinecap="round" />
+
+        {/* progress */}
+        {frac > 0.005 && (
+          <path
+            d={arcPath(rProg, START, a1, c, c)}
+            fill="none"
+            stroke={`url(#${gradId})`}
+            strokeWidth={s * 0.032}
+            strokeLinecap="round"
+            style={{ filter: 'drop-shadow(0 0 5px rgba(255,47,74,.55))' }}
+          />
+        )}
+
         {ticks}
-        {/* needle */}
+
+        {/* needle + hub */}
         <line
           x1={c}
           y1={c}
-          x2={c + rProg * 0.82 * Math.cos(a1)}
-          y2={c + rProg * 0.82 * Math.sin(a1)}
-          stroke="#e8ebf0"
-          strokeWidth={s * 0.012}
-          opacity="0.85"
+          x2={c + rProg * 0.76 * Math.cos(a1)}
+          y2={c + rProg * 0.76 * Math.sin(a1)}
+          stroke="rgba(255,255,255,0.9)"
+          strokeWidth={s * 0.009}
+          strokeLinecap="round"
         />
-        <circle cx={c} cy={c} r={s * 0.018} fill="#e8ebf0" />
-        {/* value */}
-        <text x={c} y={c + s * 0.045} textAnchor="middle" className="gauge-num" fontSize={s * 0.16}>
-          {Math.round(shown)}%
+        <circle cx={c} cy={c} r={s * 0.015} fill="#fff" opacity="0.9" />
+
+        <text
+          x={c}
+          y={c + s * 0.055}
+          textAnchor="middle"
+          className="gauge-num"
+          fontSize={s * 0.17}
+        >
+          {Math.round(shown)}
+          <tspan fontSize={s * 0.08} dx="1" opacity="0.6">%</tspan>
         </text>
       </svg>
       {caption && <div className="gauge-caption">{caption}</div>}

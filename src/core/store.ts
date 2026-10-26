@@ -2,6 +2,7 @@
  * Tiny observable store + React hook. No external state library needed.
  */
 import { useSyncExternalStore } from 'react';
+import { DEFAULT_VOICE_SETTINGS, normalizeVoiceSettings } from '../voice/presets';
 import type { AppState, ChatMsg, FaceStateName, Settings } from './types';
 
 type Listener = () => void;
@@ -18,8 +19,16 @@ let state: AppState = {
   micActive: false,
   voiceStatus: 'off',
   voiceError: null,
+  ttsStatus: null,
   netStatus: typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'offline',
-  settings: { provider: 'demo', apiKeys: {}, models: {}, autoSpeak: true, lowPower: false },
+  settings: {
+    provider: 'demo',
+    apiKeys: {},
+    models: {},
+    autoSpeak: true,
+    lowPower: false,
+    voice: DEFAULT_VOICE_SETTINGS,
+  },
   settingsOpen: false,
   toast: null,
   booted: false,
@@ -64,6 +73,20 @@ export function addMessage(msg: Omit<ChatMsg, 'id' | 'ts'>): ChatMsg {
 }
 
 /* ---------- settings ---------- */
+
+/**
+ * Settings saved by an older build (or an incomplete write) are merged over
+ * the current defaults, so no field is ever missing at runtime.
+ */
+export function normalizeSettings(raw: Partial<Settings> | undefined | null): Settings {
+  const base = getState().settings;
+  if (!raw || typeof raw !== 'object') return base;
+  return {
+    ...base,
+    ...raw,
+    voice: normalizeVoiceSettings(raw.voice),
+  };
+}
 
 export function updateSettings(patch: Partial<Settings>): void {
   const next = { ...getState().settings, ...patch };

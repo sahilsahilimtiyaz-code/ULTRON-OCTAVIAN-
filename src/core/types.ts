@@ -34,6 +34,8 @@ export type ProviderId =
   | 'groq'
   | 'custom';
 
+import type { VoiceSettings } from '../voice/presets';
+
 export interface Settings {
   provider: ProviderId;
   /** keys are stored locally on this device only */
@@ -41,6 +43,8 @@ export interface Settings {
   models: Partial<Record<ProviderId, string>>;
   autoSpeak: boolean;
   lowPower: boolean;
+  /** cinematic voice engine configuration (presets, TTS provider, FX) */
+  voice: VoiceSettings;
 }
 
 export type VoiceStatus = 'off' | 'listening' | 'denied' | 'unsupported' | 'error';
@@ -55,6 +59,8 @@ export interface AppState {
   micActive: boolean;
   voiceStatus: VoiceStatus;
   voiceError: string | null;
+  /** last TTS engine stage, shown on the Test voice control */
+  ttsStatus: string | null;
   netStatus: 'online' | 'offline';
   settings: Settings;
   settingsOpen: boolean;

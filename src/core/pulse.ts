@@ -12,6 +12,40 @@ let energy = 0; // smoothed 0..1
 let target = 0;
 let bump = 0; // transient bump from speech boundary events
 
+/* ------------------------------------------------------------------ */
+/* Real audio measurements.                                            */
+/*                                                                      */
+/* When an AnalyserNode is available (playback chain, or mic meter) the */
+/* measured RMS is pushed in here and drives the waveform AND the jaw.  */
+/* When nothing is measurable — browser SpeechSynthesis output, a       */
+/* browser without Web Audio — `realSource` stays null and the pulse    */
+/* falls back to the synthetic envelope below. Diagnostics reports      */
+/* which one is active, so fake motion is never presented as data.      */
+/* ------------------------------------------------------------------ */
+
+export type EnergySource = 'playback' | 'mic';
+
+let realEnergy = 0;
+let realSource: EnergySource | null = null;
+
+/** Push a measured RMS (0..1), or null to release the channel. */
+export function setRealEnergy(value: number | null, source: EnergySource = 'playback'): void {
+  if (value === null) {
+    if (realSource === source) {
+      realSource = null;
+      realEnergy = 0;
+    }
+    return;
+  }
+  realSource = source;
+  realEnergy = Math.max(0, Math.min(1, value));
+}
+
+/** 'measured' when a real analyser is feeding the pulse, else 'synthetic'. */
+export function energySource(): EnergySource | 'synthetic' {
+  return realSource ?? 'synthetic';
+}
+
 export function setPulseMode(m: PulseMode): void {
   mode = m;
 }
@@ -39,6 +73,12 @@ function noise(t: number): number {
  * - off: near silence
  */
 export function pulseAt(t: number): number {
+  // measured audio wins whenever an analyser is actually running
+  if (realSource !== null && (mode === 'speaking' || mode === 'listening')) {
+    target = Math.min(1, realEnergy + bump * 0.5);
+    return target;
+  }
+
   let t0 = 0;
   switch (mode) {
     case 'listening':

@@ -1,6 +1,6 @@
 /**
- * ULTRON AI — root component. Composes the HUD: status bar, header,
- * robot panel, linkage panel, chat terminal, tabs, views and nav.
+ * ULTRON AI — root component. Composes the HUD: status strip, header,
+ * robot panel, linkage panel, chat terminal, tabs, views and dock.
  */
 import { useEffect } from 'react';
 import StatusBar from './components/StatusBar';
@@ -13,7 +13,7 @@ import BottomNav from './components/BottomNav';
 import SettingsSheet from './components/SettingsSheet';
 import { DiagnosticsView, LabView, SystemsView } from './components/Views';
 import { bootFace } from './robot/FaceCanvas';
-import { addMessage, setState, useStore, getState } from './core/store';
+import { addMessage, normalizeSettings, setState, useStore, getState } from './core/store';
 import { kvGet } from './core/idb';
 import { warmUpSynthesis } from './core/voice';
 import { setPulseMode } from './core/pulse';
@@ -29,7 +29,9 @@ export default function App() {
     void (async () => {
       const saved = await kvGet<Settings>('settings');
       if (cancelled) return;
-      if (saved) setState({ settings: saved });
+      // merge over current defaults so settings saved by an older build
+      // still have every voice-engine field at runtime
+      if (saved) setState({ settings: normalizeSettings(saved) });
       warmUpSynthesis();
       if (getStateMessagesEmpty()) {
         addMessage({
@@ -59,7 +61,7 @@ export default function App() {
 
   /* keep voice pulse mode in step with mic + speaking */
   useEffect(() => {
-    const s = useStoreState();
+    const s = getState();
     if (s.speaking) setPulseMode('speaking');
     else if (s.micActive) setPulseMode('listening');
     else if (s.thinking) setPulseMode('thinking');
@@ -68,11 +70,10 @@ export default function App() {
   return (
     <div className="app">
       <div className="bg-fx" aria-hidden="true">
-        <div className="bg-wash w1" />
-        <div className="bg-wash w2" />
-        <div className="bg-scan" />
-        <div className="bg-glitch g1" />
-        <div className="bg-glitch g2" />
+        <div className="bg-aurora" />
+        <div className="bg-grid" />
+        <div className="bg-noise" />
+        <div className="bg-vignette" />
       </div>
 
       <StatusBar />
@@ -84,7 +85,6 @@ export default function App() {
           <LinkagePanel />
           <ChatTerminal />
           <BottomTabs />
-          <div className="corner-spark" aria-hidden="true">✦</div>
         </main>
       )}
       {view === 'diagnostics' && (
@@ -110,10 +110,6 @@ export default function App() {
   );
 }
 
-/* local helpers to avoid circular imports in effects */
 function getStateMessagesEmpty(): boolean {
   return getState().messages.length === 0;
-}
-function useStoreState() {
-  return getState();
 }

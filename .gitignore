@@ -1,0 +1,5 @@
+/freebuff-sites-build/
+.vite-preview*
+/artifacts/
+/dist/
+*.tsbuildinfo

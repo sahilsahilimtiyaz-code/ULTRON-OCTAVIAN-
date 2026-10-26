@@ -25,12 +25,34 @@ npm run build      # typechecks (tsc) + bundles into dist/
 npm run preview    # serves dist/ at http://127.0.0.1:4173
 ```
 
+## Interface
+
+Mission-control aesthetic: graphite glass surfaces, hairline borders, crimson
+instrumentation and cold-steel data type. Everything derives from the tokens at
+the top of `src/theme.css` (colour, spacing, radii, elevation, easing), so a
+retheme is one block of variables.
+
+- **Type** — Michroma (display), Rajdhani (UI), Share Tech Mono (data).
+- **Chrome** — status strip, brand header, floating dock with labelled tabs,
+  slide-up configuration sheet, card/panel system with corner ticks.
+- **Depth** — layered background (aurora, technical grid, film grain, vignette),
+  glass panels with top hairline highlight, one-pixel focus rings.
+- **Motion** — short eased entrances, live energy meters, and a full
+  `prefers-reduced-motion` path that stops ambient animation.
+- **Responsive** — single column below 560px, side-by-side linkage stage and
+  wider gutters above it; checked for no horizontal overflow at 360px.
+
 ## What is real vs. demo (honesty notes)
 
 - **3D robot face** — REAL: live Three.js render, 7 facial states, blinking,
   jaw articulation, drag-to-rotate. Original procedural design.
-- **Waveform / gauges / globe** — REAL animated renderings (decorative telemetry
-  numbers are simulated HUD flavour, exactly like the mockup).
+- **Planetary uplink globe** — REAL WebGL render: a custom-shader Earth (warped
+  noise continents, ice caps, drifting cloud layer, day/night terminator, city
+  lights, ocean specular, fresnel atmosphere, graticule), a starfield, two orbit
+  tracks with satellites, and dashed-arc data flows with travelling packets.
+  Drag the globe to orbit it; rotation pauses off-screen and when the tab hides.
+- **Waveform / gauges** — REAL animated renderings of the app's own state
+  (decorative telemetry numbers are simulated HUD flavour, exactly like the mockup).
 - **Chat brain** — DEMO by default (scripted answers, clearly labelled
   `DEMO RESPONSE`). Selecting a provider in Settings makes REAL network calls:
   - Verified working from a browser: **OpenCode Zen** (free models, no key),
@@ -39,26 +61,49 @@ npm run preview    # serves dist/ at http://127.0.0.1:4173
     needs the small backend proxy planned for Milestone 6.
 - **Voice input** — REAL where the browser supports `SpeechRecognition`
   (Chrome on Android). Falls back to clear error text elsewhere.
-- **Speech output** — REAL `SpeechSynthesis` with robotic-ish pitch; the jaw is
-  driven by an energy pulse (boundary events + fallback timer), NOT phoneme
-  lip-sync.
+- **Speech output** — the **cinematic voice engine** (see `src/voice/`):
+  - browser `SpeechSynthesis` as the always-available, offline fallback,
+  - neural / local TTS providers (ElevenLabs, OpenAI-compatible, self-hosted)
+    when you add an endpoint and (optionally) a key,
+  - a **real, connected Web Audio chain** rendered offline per utterance:
+    pitch shift → HPF → EQ → saturation → metallic layer → compressor →
+    short reverb → limiter,
+  - the jaw and the waveform are driven by **measured RMS from an
+    AnalyserNode** while buffer audio plays. With browser `SpeechSynthesis`
+    the browser gives no access to its output, so the pulse is a synthetic
+    envelope — and diagnostics labels it SYNTHETIC instead of pretending.
+  - NOT phoneme-level lip sync.
 - **Keys** — stored only in this device's local IndexedDB, sent only to the
-  chosen provider. Nothing is hardcoded.
-
-## Settings
-
-Hamburger icon (top right) or the gear in the bottom nav:
+  chosen provider. Nothing is hardcoded.## Settings
+Gear button (top right) or **CONFIG** in the bottom dock:
 choose provider, paste key, pick model, toggle spoken replies,
-wipe all local data.
+configure the **voice engine** (provider, preset, rate/pitch/formant/metallic/
+reverb, processing bypass, reference audio + cloning), wipe all local data.
 
 OpenCode Zen free models need **no key**: `mimo-v2.6-flash-free`,
-`flint-40b-free`, `beam-free`, `big-pickle`, …
+`flint-40b-free`, `beam-free`, `big-pickle`, …## Voice engine — what works, what needs credentials
+
+| Capability | State |
+| --- | --- |
+| ULTRON_PRIME preset (deep, metallic, cinematic) | REAL — offline Web Audio render, values tunable in `src/voice/presets.ts` and in Settings |
+| BYPASS preset | REAL — raw provider audio, chain and pitch shift skipped |
+| Duration-preserving pitch shift (WSOLA) | REAL — verified numerically by `npm run check:dsp` (±0.05 semitone error, length preserved exactly) |
+| Reference upload, validation, playback, A/B, measurements | REAL — DIAGNOSTICS → VOICE REFERENCE LAB |
+| Browser SpeechSynthesis fallback | REAL — works offline, no key, no FX chain (impossible by design) |
+| ElevenLabs TTS + voice cloning | CODED, **UNTESTED** — needs your API key or gateway; direct browser CORS is undocumented by the vendor |
+| OpenAI TTS | CODED, **UNTESTED** — needs your API key or gateway; no cloning (stock voices only) |
+| Local OpenAI-compatible TTS server | CODED, **UNTESTED** — point ENDPOINT at piper/openedai-speech/XTTS |
+
+Credentials are never embedded in the code. A key typed in Settings stays in
+this device's IndexedDB; the safer option is to point ENDPOINT at your own
+gateway that holds the secret server-side.
 
 ## Diagnostics view
-
 Bottom nav → gauge icon: buttons to trigger every facial state
-(idle / listening / thinking / speaking / coding / success / error) and a
-subsystem report. Use this to verify animation states.
+(idle / listening / thinking / speaking / coding / success / error), a
+subsystem + voice-engine report, and the **Voice Reference Lab** (measure a
+reference clip, generate the same phrase, compare F0 / spectrum / loudness /
+true peak / pacing, and A/B listen raw vs processed).
 
 ## Troubleshooting
 
@@ -74,7 +119,8 @@ subsystem report. Use this to verify animation states.
 
 - M2 ✔ facial state machine + performance fallbacks (this build)
 - M3 streaming responses + per-provider model fetching
-- M4 better mic energy (AnalyserNode) + viseme research
+- M4 partial ✔ real mic energy (AnalyserNode, best effort) + voice-engine
+  reference lab; viseme research still open
 - M5 coding workspace: file tree, editor, diffs, export (IndexedDB-backed FS)
 - M6 secure backend: NVIDIA proxy, workspace file ops, real test runs
 - M7 Capacitor Android packaging (after core is stable)
@@ -83,10 +129,15 @@ subsystem report. Use this to verify animation states.
 
 ```
 src/
-  core/       config, store, idb, providers, chat flow, voice, pulse
+  core/       config, store, idb, providers, chat flow, voice facade, pulse
+  voice/      presets, dsp (pitch shift), chain (Web Audio FX), tts (provider
+              abstraction), cloning, engine, analysis (measurements)
   robot/      headBuilder (geometry), FaceController (states), FaceCanvas
-  widgets/    Waveform, Gauge, GlobeCanvas
-  components/ StatusBar, Header, HudPanel, RobotPanel, LinkagePanel,
-              ChatTerminal, BottomTabs, BottomNav, SettingsSheet, Views
-  theme.css   full HUD design system
+  widgets/    Waveform (measured-energy canvas), Gauge (SVG instrument),
+              GlobeCanvas (shader Earth + orbits + data arcs)
+  components/ StatusBar, Header, HudPanel (+PanelHead), RobotPanel,
+              LinkagePanel, ChatTerminal, BottomTabs, BottomNav,
+              SettingsSheet, VoiceEnginePanel, VoiceLab, Views
+  theme.css   design system: tokens, chrome, panels, terminal, dock, views,
+              sheet controls, voice panels, responsive + reduced-motion rules
 ```

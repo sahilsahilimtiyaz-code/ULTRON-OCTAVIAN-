@@ -4,6 +4,7 @@
  * are sent directly to the selected provider. No keys are embedded in code.
  */
 import { useEffect, useState } from 'react';
+import VoiceEnginePanel from './VoiceEnginePanel';
 import { PROVIDER_ORDER, providerInfo } from '../core/providers';
 import { setState, updateSettings, toast } from '../core/store';
 import { wipeLocalData } from '../core/idb';
@@ -51,8 +52,12 @@ export default function SettingsSheet() {
   return (
     <div className="sheet-backdrop" onClick={() => setState({ settingsOpen: false })}>
       <div className="sheet" role="dialog" aria-label="Settings" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-grab" aria-hidden="true" />
         <div className="sheet-head">
-          <span>SYSTEM CONFIG</span>
+          <div className="sheet-head-l">
+            <span className="sheet-kicker">SYSTEM CONFIG // DEVICE</span>
+            <span className="sheet-label">CONFIGURATION</span>
+          </div>
           <button className="sheet-close" aria-label="Close settings" onClick={() => setState({ settingsOpen: false })}>✕</button>
         </div>
         <div className="sheet-body">
@@ -125,6 +130,8 @@ export default function SettingsSheet() {
           <p className="fld-note">
             Voice input: {caps.recognition ? 'supported' : 'NOT supported in this browser'} · Speech output: {caps.synthesis ? 'supported' : 'NOT supported'}
           </p>
+
+          <VoiceEnginePanel />
 
           <button className="btn-primary" onClick={save}>SAVE CONFIG</button>
           <button

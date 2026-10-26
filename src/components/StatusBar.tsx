@@ -1,4 +1,4 @@
-/** Top HUD status bar: signal bars, HIGH-TECH, clock, link status, battery. */
+/** Top status strip: signal, clock, encrypted link state, battery. */
 import { useEffect, useState } from 'react';
 import { useStore } from '../core/store';
 
@@ -35,20 +35,15 @@ export default function StatusBar() {
   const clock = useClock();
   const battery = useBattery();
   const net = useStore((s) => s.netStatus);
-  const linkText = net === 'online' ? 'ONLINE // ENCRYPTED' : 'OFFLINE // LOCAL ONLY';
+  const linkText = net === 'online' ? 'ENCRYPTED' : 'LOCAL ONLY';
 
   return (
     <div className="statusbar" role="status">
       <div className="sb-left">
-        <span className="sb-bars" aria-hidden="true">
+        <span className="sb-signal" aria-hidden="true">
           <i /><i /><i /><i />
         </span>
         <span className="sb-hightech">HIGH-TECH</span>
-        <svg className="sb-wifi" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 20.5 2.5 9.5A15 15 0 0 1 21.5 9.5Z" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M7.5 13.5a6.4 6.4 0 0 1 9 0" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          <circle cx="12" cy="17.5" r="1.4" fill="currentColor" />
-        </svg>
       </div>
       <div className="sb-clock">{clock}</div>
       <div className="sb-right">

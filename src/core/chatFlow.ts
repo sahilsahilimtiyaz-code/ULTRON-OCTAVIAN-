@@ -3,7 +3,7 @@
  * -> assistant message -> speaking (TTS + face) -> idle.
  * Keeps state transitions in ONE place so the face controller simply follows.
  */
-import { addMessage, getState, setFace, setState } from './store';
+import { addMessage, getState, setFace, setState, toast } from './store';
 import { demoReply } from './demoBrain';
 import { sendLiveChat } from './liveProvider';
 import { speak, stopSpeaking } from './voice';
@@ -37,7 +37,7 @@ export function stopAll(): void {
   }
   stopSpeaking();
   setPulseMode('off');
-  setState({ thinking: false, speaking: false, micActive: false });
+  setState({ thinking: false, speaking: false, micActive: false, ttsStatus: null });
   setFace('idle');
 }
 
@@ -97,13 +97,17 @@ export async function sendUserMessage(text: string): Promise<void> {
     return;
   }
 
-  setState({ speaking: true });
+  setState({ speaking: true, ttsStatus: null });
   setPulseMode('speaking');
   setFace('speaking');
   speak(reply, {
+    // synthetic bumps: only used when no measurable audio exists
     onPulse: (s) => bumpPulse(s),
+    onProgress: (stage, detail) =>
+      setState({ ttsStatus: detail ? `${stage.toUpperCase()} // ${detail.toUpperCase()}` : stage.toUpperCase() }),
+    onFallback: (msg) => toast(`VOICE FALLBACK // ${msg}`),
     onEnd: () => {
-      setState({ speaking: false });
+      setState({ speaking: false, ttsStatus: null });
       setPulseMode('off');
       setFace('idle');
     },
@@ -111,7 +115,7 @@ export async function sendUserMessage(text: string): Promise<void> {
   // safety: if the engine never fires onEnd (Android quirk), recover after 60s
   window.setTimeout(() => {
     if (getState().speaking) {
-      setState({ speaking: false });
+      setState({ speaking: false, ttsStatus: null });
       setPulseMode('off');
       setFace('idle');
     }

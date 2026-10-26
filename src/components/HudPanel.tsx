@@ -22,3 +22,24 @@ export default function HudPanel({
     </section>
   );
 }
+
+/** Consistent panel header: mono eyebrow, title, optional status slot. */
+export function PanelHead({
+  kicker,
+  title,
+  right,
+}: {
+  kicker: string;
+  title: string;
+  right?: ReactNode;
+}) {
+  return (
+    <div className="panel-head">
+      <div className="panel-head-l">
+        <span className="panel-kicker">{kicker}</span>
+        <h2 className="panel-title">{title}</h2>
+      </div>
+      {right}
+    </div>
+  );
+}

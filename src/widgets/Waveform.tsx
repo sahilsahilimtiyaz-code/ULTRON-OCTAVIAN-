@@ -1,9 +1,12 @@
 /**
  * Animated voice waveform (canvas 2D). Reads the shared voice pulse so it
- * matches the robot's jaw movement exactly.
+ * matches the robot's jaw movement exactly — measured energy when audio is
+ * available, the documented synthetic fallback otherwise.
  */
 import { useEffect, useRef } from 'react';
 import { currentPulse, pulseMode } from '../core/pulse';
+
+const BARS = 42;
 
 export default function Waveform({ className }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -17,10 +20,9 @@ export default function Waveform({ className }: { className?: string }) {
     let raf = 0;
     let running = true;
     const t0 = performance.now();
-    const BARS = 44;
 
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.6);
       canvas.width = Math.max(2, canvas.clientWidth * dpr);
       canvas.height = Math.max(2, canvas.clientHeight * dpr);
     };
@@ -40,34 +42,57 @@ export default function Waveform({ className }: { className?: string }) {
       const mode = pulseMode();
 
       ctx.clearRect(0, 0, w, h);
-      // center guide line
-      ctx.strokeStyle = 'rgba(255,45,63,0.28)';
-      ctx.lineWidth = Math.max(1, h * 0.012);
+
+      /* centre guide */
+      ctx.strokeStyle = 'rgba(255,47,74,0.22)';
+      ctx.lineWidth = Math.max(1, h * 0.008);
       ctx.beginPath();
       ctx.moveTo(0, mid);
       ctx.lineTo(w, mid);
       ctx.stroke();
 
       const bw = w / BARS;
-      const barW = Math.max(1.5, bw * 0.42);
+      const barW = Math.max(2, bw * 0.34);
+      const radius = barW / 2;
+
       for (let i = 0; i < BARS; i++) {
-        const x = i * bw + bw * 0.5;
-        const ph = i * 0.55;
+        const x = i * bw + bw / 2;
+        const ph = i * 0.52;
         const n =
-          Math.abs(Math.sin(t * 5.3 + ph)) * 0.45 +
-          Math.abs(Math.sin(t * 2.9 + ph * 1.7)) * 0.35 +
-          Math.abs(Math.sin(t * 7.7 + ph * 0.6)) * 0.2;
-        const idleFloor = mode === 'off' ? 0.05 + 0.04 * Math.abs(Math.sin(t * 1.4 + ph)) : 0.08;
-        const a = Math.min(1, (idleFloor + amp * n) * 0.95);
-        const bh = Math.max(2, a * (h * 0.46));
+          Math.abs(Math.sin(t * 5.1 + ph)) * 0.44 +
+          Math.abs(Math.sin(t * 2.7 + ph * 1.7)) * 0.34 +
+          Math.abs(Math.sin(t * 7.9 + ph * 0.6)) * 0.22;
+        // resting motion is a gentle travelling wave; speaking/listening uses
+        // the measured pulse, which dominates as soon as audio energy exists
+        const idle =
+          mode === 'off'
+            ? 0.09 + 0.05 * Math.abs(Math.sin(t * 1.1 + ph * 0.8))
+            : 0.15 + 0.06 * Math.abs(Math.sin(t * 1.7 + ph * 0.9));
+        const a = Math.min(1, (idle + amp * n * 0.9) * 0.95);
+        const bh = Math.max(3, a * (h * 0.44));
+
         const grad = ctx.createLinearGradient(0, mid - bh, 0, mid + bh);
-        grad.addColorStop(0, '#ff4a5e');
-        grad.addColorStop(0.5, '#ff2038');
-        grad.addColorStop(1, '#ff4a5e');
+        grad.addColorStop(0, 'rgba(255,141,155,0.95)');
+        grad.addColorStop(0.45, 'rgba(255,47,74,0.95)');
+        grad.addColorStop(1, 'rgba(179,19,42,0.85)');
+
         ctx.fillStyle = grad;
-        ctx.fillRect(x - barW / 2, mid - bh, barW, bh * 2);
+        ctx.shadowColor = 'rgba(255,47,74,0.45)';
+        ctx.shadowBlur = bh * 0.6;
+        ctx.beginPath();
+        const x0 = x - barW / 2;
+        const y0 = mid - bh;
+        const height = bh * 2;
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x0, y0, barW, height, radius);
+        } else {
+          ctx.rect(x0, y0, barW, height);
+        }
+        ctx.fill();
       }
+      ctx.shadowBlur = 0;
     };
+
     const start = () => {
       if (running) return;
       running = true;
@@ -77,7 +102,10 @@ export default function Waveform({ className }: { className?: string }) {
       running = false;
       cancelAnimationFrame(raf);
     };
-    const onVis = () => (document.hidden ? stop() : ((running = false), start()));
+    const onVis = () => {
+      if (document.hidden) stop();
+      else start();
+    };
     document.addEventListener('visibilitychange', onVis);
     raf = requestAnimationFrame(tick);
 
