@@ -1,0 +1,28 @@
+{
+  "name": "ultron-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ULTRON AI - cinematic voice-enabled AI coding assistant (mobile-first web app)",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "typecheck": "tsc -b --force",
+    "sync": "bash scripts/sync-to-sdcard.sh"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "playwright-core": "^1.64.1",
+    "typescript": "~5.6.3",
+    "vite": "^5.4.11"
+  }
+}

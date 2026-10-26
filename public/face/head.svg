@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1100" viewBox="0 0 900 1100">
+  <defs>
+    <linearGradient id="gGunDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b303a"/><stop offset="0.4" stop-color="#171b22"/>
+      <stop offset="0.75" stop-color="#0c0e13"/><stop offset="1" stop-color="#232830"/>
+    </linearGradient>
+    <linearGradient id="gGunMid" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#79828f"/><stop offset="0.3" stop-color="#4b525d"/>
+      <stop offset="0.55" stop-color="#2a2f38"/><stop offset="0.8" stop-color="#181c23"/>
+      <stop offset="1" stop-color="#3a4049"/>
+    </linearGradient>
+    <linearGradient id="gPlate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b9c1cc"/><stop offset="0.28" stop-color="#79828f"/>
+      <stop offset="0.55" stop-color="#3f454f"/><stop offset="0.82" stop-color="#232830"/>
+      <stop offset="1" stop-color="#4a515c"/>
+    </linearGradient>
+    <linearGradient id="gPlateHi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9edf2"/><stop offset="0.35" stop-color="#aab2bd"/>
+      <stop offset="0.65" stop-color="#5b626d"/><stop offset="1" stop-color="#31363f"/>
+    </linearGradient>
+    <linearGradient id="gSpec" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4a4f5a"/><stop offset="0.5" stop-color="#262a31"/><stop offset="1" stop-color="#14171c"/>
+    </linearGradient>
+    <linearGradient id="gDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a1d24"/><stop offset="1" stop-color="#0a0c10"/>
+    </linearGradient>
+    <linearGradient id="gAmberEye" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9b0"/><stop offset="0.35" stop-color="#ffc23d"/>
+      <stop offset="0.7" stop-color="#ff8c00"/><stop offset="1" stop-color="#7a3d00"/>
+    </linearGradient>
+    <radialGradient id="gAmberGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff3cf"/><stop offset="0.35" stop-color="#ffb02e"/>
+      <stop offset="1" stop-color="#ff8c00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gCore" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#fff7dd"/><stop offset="0.4" stop-color="#ffbf47"/>
+      <stop offset="0.75" stop-color="#c67c10"/><stop offset="1" stop-color="#6b3f05"/>
+    </radialGradient>
+    <radialGradient id="gWarmRim" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff7020" stop-opacity="0.28"/><stop offset="1" stop-color="#ff7020" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gPod" cx="0.36" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#6a727e"/><stop offset="0.55" stop-color="#31363f"/>
+      <stop offset="1" stop-color="#101318"/>
+    </radialGradient>
+    <linearGradient id="gSheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="hex" width="46" height="78" patternUnits="userSpaceOnUse" patternTransform="rotate(12)">
+      <path d="M23 2 42 13v26L23 50 4 39V13Z" fill="none" stroke="#8b93a0" stroke-width="1.4"/>
+      <path d="M23 52 42 63v26L23 100 4 89V63Z" fill="none" stroke="#565d68" stroke-width="1" opacity="0.55"/>
+    </pattern>
+    <pattern id="brush" width="8" height="140" patternUnits="userSpaceOnUse">
+      <rect width="8" height="140" fill="none"/>
+      <rect x="0" y="0" width="2" height="140" fill="#ffffff" opacity="0.05"/>
+      <rect x="4" y="0" width="1.4" height="140" fill="#000000" opacity="0.08"/>
+    </pattern>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <filter id="b4" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="b14" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="b30" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="30"/></filter>
+    <clipPath id="domeClip">
+      <path d="M 450 70 C 585 74 690 150 715 280 C 723 340 710 395 675 438 C 697 480 700 540 672 590 L 645 690 C 615 775 540 838 450 852 C 360 838 285 775 255 690 L 228 590 C 200 540 203 480 225 438 C 190 395 177 340 185 280 C 210 150 315 74 450 70 Z"/>
+    </clipPath>
+    <clipPath id="chinClip"><path d="M 352 716 L 548 716 L 540 806 C 520 836 490 852 450 856 C 410 852 380 836 360 806 Z"/></clipPath>
+    <path id="skullPath" d="M 450 70 C 585 74 690 150 715 280 C 723 340 710 395 675 438 C 697 480 700 540 672 590 L 645 690 C 615 775 540 838 450 852 C 360 838 285 775 255 690 L 228 590 C 200 540 203 480 225 438 C 190 395 177 340 185 280 C 210 150 315 74 450 70 Z"/>
+    <polygon id="podHex" points="228,600 188,521 108,521 68,600 108,680 188,680"/>
+    <polygon id="podHexR" points="832,600 792,521 712,521 672,600 712,680 792,680"/>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="900" height="1100" fill="#04050a"/>
+  <ellipse cx="450" cy="500" rx="440" ry="450" fill="url(#gWarmRim)"/>
+
+  <!-- neck -->
+  <ellipse cx="450" cy="950" rx="74" ry="118" fill="url(#gDark)"/>
+  <ellipse cx="450" cy="880" rx="150" ry="36" fill="none" stroke="url(#gSteel)" stroke-width="26"/>
+  <ellipse cx="450" cy="928" rx="158" ry="38" fill="none" stroke="url(#gPlateHi)" stroke-width="24" opacity="0.9"/>
+  <ellipse cx="450" cy="976" rx="152" ry="36" fill="none" stroke="url(#gSteel)" stroke-width="26"/>
+  <ellipse cx="450" cy="1022" rx="140" ry="32" fill="none" stroke="url(#gPlateHi)" stroke-width="22" opacity="0.75"/>
+  <ellipse cx="450" cy="1035" rx="95" ry="20" fill="#ff8c00" opacity="0.4" filter="url(#b14)"/>
+
+  <!-- back skull -->
+  <use href="#skullPath" fill="url(#gGunDark)" transform="translate(450 462) scale(1.07) translate(-450 -462)"/>
+
+  <!-- main head -->
+  <use href="#skullPath" fill="url(#gGunMid)"/>
+  <use href="#skullPath" fill="url(#brush)" opacity="0.5"/>
+  <path d="M 450 70 C 585 74 690 150 715 280 C 723 340 710 395 675 438 C 697 480 700 540 672 590 L 645 690 C 615 775 540 838 450 852 C 360 838 285 775 255 690 L 228 590 C 200 540 203 480 225 438 C 190 395 177 340 185 280 C 210 150 315 74 450 70 Z" fill="url(#hex)" clip-path="url(#domeClip)" opacity="0.16"/>
+  <use href="#skullPath" fill="url(#gSheen)"/>
+
+  <!-- anisotropic streaks -->
+  <path d="M 300 170 Q 430 96 560 160" fill="none" stroke="url(#gSpec)" stroke-width="10" opacity="0.5" filter="url(#b4)"/>
+  <path d="M 240 330 Q 300 220 420 190" fill="none" stroke="url(#gSpec)" stroke-width="5" opacity="0.35" filter="url(#b4)"/>
+
+  <!-- plate gaps -->
+  <g fill="none" stroke="#08090d" stroke-width="6.5" stroke-linecap="round" opacity="0.85">
+    <path d="M 258 272 Q 450 194 642 272"/>
+    <path d="M 318 212 Q 292 420 316 640"/>
+    <path d="M 582 212 Q 608 420 584 640"/>
+    <path d="M 268 622 Q 450 560 632 622"/>
+  </g>
+  <g fill="none" stroke="#dfe5ec" stroke-width="2" stroke-linecap="round" opacity="0.4">
+    <path d="M 260 266 Q 450 188 640 266"/>
+    <path d="M 324 216 Q 300 420 322 634"/>
+  </g>
+  <!-- occlusion under plate edges -->
+  <path d="M 262 280 Q 450 206 638 280" fill="none" stroke="#000000" stroke-width="12" opacity="0.25" filter="url(#b14)"/>
+
+  <!-- center spine -->
+  <rect x="437" y="160" width="26" height="90" rx="13" fill="url(#gPlateHi)" stroke="#0b0d11" stroke-width="2"/>
+  <rect x="432" y="256" width="36" height="112" rx="16" fill="url(#gPlateHi)" stroke="#0b0d11" stroke-width="2"/>
+  <rect x="437" y="168" width="8" height="74" rx="4" fill="#ffffff" opacity="0.4"/>
+
+  <!-- forehead energy core -->
+  <polygon points="450,206 506,274 450,342 394,274" fill="#ffb02e" opacity="0.5" filter="url(#b14)"/>
+  <polygon points="450,212 498,274 450,336 402,274" fill="url(#gCore)" stroke="#241603" stroke-width="2.5"/>
+  <g stroke="#4a3208" stroke-width="2" opacity="0.6">
+    <line x1="450" y1="212" x2="450" y2="336"/>
+    <line x1="402" y1="274" x2="498" y2="274"/>
+    <line x1="426" y1="243" x2="474" y2="305"/>
+    <line x1="474" y1="243" x2="426" y2="305"/>
+  </g>
+  <circle cx="437" cy="260" r="8" fill="#ffffff" opacity="0.9"/>
+  <polygon points="450,198 518,274 450,350 382,274" fill="none" stroke="url(#gPlateHi)" stroke-width="7"/>
+  <polygon points="450,193 523,274 450,355 377,274" fill="none" stroke="#0b0d11" stroke-width="2.5"/>
+  <ellipse cx="450" cy="274" rx="70" ry="80" fill="url(#gAmberGlow)" opacity="0.22" filter="url(#b30)"/>
+
+  <!-- brow visor -->
+  <polygon points="234,400 666,400 682,432 644,456 256,456 218,432" fill="url(#gPlate)" stroke="#0b0d11" stroke-width="3"/>
+  <rect x="246" y="406" width="408" height="8" rx="4" fill="#ffffff" opacity="0.4"/>
+  <path d="M 240 452 Q 450 468 660 452 L 644 456 L 256 456 Z" fill="#000000" opacity="0.4"/>
+
+  <!-- eyes: amber slits in deep sockets -->
+  <rect x="302" y="462" width="132" height="44" rx="16" fill="#08090d"/>
+  <rect x="466" y="462" width="132" height="44" rx="16" fill="#08090d"/>
+  <rect x="308" y="470" width="128" height="28" rx="13" fill="#ff9d1a" filter="url(#b14)" opacity="0.8"/>
+  <rect x="472" y="470" width="128" height="28" rx="13" fill="#ff9d1a" filter="url(#b14)" opacity="0.8"/>
+  <ellipse cx="366" cy="484" rx="88" ry="38" fill="url(#gAmberGlow)" opacity="0.32" filter="url(#b30)"/>
+  <ellipse cx="534" cy="484" rx="88" ry="38" fill="url(#gAmberGlow)" opacity="0.32" filter="url(#b30)"/>
+  <rect x="314" y="468" width="108" height="24" rx="12" fill="url(#gAmberEye)"/>
+  <rect x="478" y="468" width="108" height="24" rx="12" fill="url(#gAmberEye)"/>
+  <ellipse cx="342" cy="479" rx="21" ry="7" fill="#fffdf4" opacity="0.95"/>
+  <ellipse cx="506" cy="479" rx="21" ry="7" fill="#fffdf4" opacity="0.95"/>
+  <path d="M 306 500 Q 368 508 430 500 L 430 506 L 306 506 Z" fill="#000000" opacity="0.5"/>
+  <path d="M 470 500 Q 532 508 594 500 L 594 506 L 470 506 Z" fill="#000000" opacity="0.5"/>
+
+  <!-- nose -->
+  <path d="M 436 512 L 464 512 L 462 574 L 438 574 Z" fill="url(#gPlateHi)" stroke="#0b0d11" stroke-width="2"/>
+  <path d="M 440 580 L 460 580 L 457 616 L 443 616 Z" fill="url(#gSteel)"/>
+
+  <!-- cheek vents -->
+  <g fill="#14171c">
+    <rect x="236" y="640" width="114" height="12" rx="6" transform="rotate(-14 293 646)"/>
+    <rect x="242" y="666" width="102" height="11" rx="5" transform="rotate(-14 293 671)"/>
+    <rect x="550" y="640" width="114" height="12" rx="6" transform="rotate(14 607 646)"/>
+    <rect x="556" y="666" width="102" height="11" rx="5" transform="rotate(14 607 671)"/>
+  </g>
+  <rect x="262" y="700" width="30" height="10" rx="5" fill="#565d68" opacity="0.7"/>
+  <rect x="608" y="700" width="30" height="10" rx="5" fill="#565d68" opacity="0.7"/>
+
+  <!-- angular mouth vent -->
+  <polygon points="370,650 530,650 540,706 360,706" fill="#06070b" stroke="#0b0d11" stroke-width="2"/>
+  <rect x="378" y="658" width="144" height="7" rx="3" fill="#9aa2ad" opacity="0.85"/>
+  <rect x="378" y="673" width="144" height="7" rx="3" fill="#9aa2ad" opacity="0.65"/>
+  <rect x="378" y="688" width="144" height="7" rx="3" fill="#9aa2ad" opacity="0.48"/>
+  <rect x="380" y="698" width="140" height="6" rx="3" fill="#ff9d1a" filter="url(#b4)"/>
+  <rect x="384" y="699" width="132" height="4" rx="2" fill="url(#gAmberGlow)"/>
+
+  <!-- jaw (crop target) -->
+  <g id="jawGroup">
+    <path d="M 294 712 L 356 712 L 348 830 L 322 812 Z" fill="url(#gPlate)" stroke="#0b0d11" stroke-width="2.5" transform="rotate(6 325 770)"/>
+    <path d="M 606 712 L 544 712 L 552 830 L 578 812 Z" fill="url(#gPlate)" stroke="#0b0d11" stroke-width="2.5" transform="rotate(-6 575 770)"/>
+    <path d="M 352 716 L 548 716 L 540 806 C 520 836 490 852 450 856 C 410 852 380 836 360 806 Z" fill="url(#gPlate)" stroke="#0b0d11" stroke-width="3"/>
+    <path d="M 352 716 L 548 716 L 540 806 C 520 836 490 852 450 856 C 410 852 380 836 360 806 Z" fill="url(#hex)" clip-path="url(#chinClip)" opacity="0.14"/>
+    <path d="M 364 722 L 536 722 L 534 734 L 366 734 Z" fill="#ffffff" opacity="0.3"/>
+    <path d="M 380 828 Q 450 848 520 828" fill="none" stroke="#0b0d11" stroke-width="4" opacity="0.65"/>
+    <rect x="418" y="840" width="64" height="22" rx="9" fill="url(#gSteel)"/>
+    <path d="M 540 728 Q 554 778 540 820" fill="none" stroke="#ff9d1a" stroke-width="3" opacity="0.5" filter="url(#b4)"/>
+  </g>
+
+  <!-- antenna fins -->
+  <rect x="246" y="448" width="44" height="40" rx="9" fill="url(#gSteel)"/>
+  <rect x="610" y="448" width="44" height="40" rx="9" fill="url(#gSteel)"/>
+  <path d="M 260 472 C 208 432 182 356 178 288 L 222 332 C 242 388 254 428 268 456 Z" fill="url(#gPlateHi)" stroke="#0b0d11" stroke-width="2.5"/>
+  <path d="M 246 444 C 218 400 202 348 196 312" fill="none" stroke="#0b0d11" stroke-width="5" opacity="0.6"/>
+  <path d="M 254 462 C 216 420 196 356 192 302" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5"/>
+  <path d="M 640 472 C 692 432 718 356 722 288 L 678 332 C 658 388 646 428 632 456 Z" fill="url(#gPlateHi)" stroke="#0b0d11" stroke-width="2.5"/>
+  <path d="M 654 444 C 682 400 698 348 704 312" fill="none" stroke="#0b0d11" stroke-width="5" opacity="0.6"/>
+  <path d="M 646 462 C 684 420 704 356 708 302" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.5"/>
+
+  <!-- hexagonal ear pods -->
+  <use href="#podHex" fill="url(#gPod)" stroke="#0b0d11" stroke-width="3"/>
+  <g transform="translate(148,600) scale(0.76) translate(-148,-600)"><use href="#podHex" fill="none" stroke="url(#gPlateHi)" stroke-width="8" opacity="0.6"/></g>
+  <g transform="translate(148,600) scale(0.48) translate(-148,-600)"><use href="#podHex" fill="none" stroke="url(#gPlateHi)" stroke-width="6" opacity="0.45"/></g>
+  <polygon points="148,582 164,591.5 164,608.5 148,618 132,608.5 132,591.5" fill="url(#gCore)" stroke="#241603" stroke-width="2"/>
+  <ellipse cx="148" cy="600" rx="55" ry="55" fill="url(#gAmberGlow)" opacity="0.2" filter="url(#b30)"/>
+  <use href="#podHexR" fill="url(#gPod)" stroke="#0b0d11" stroke-width="3"/>
+  <g transform="translate(752,600) scale(0.76) translate(-752,-600)"><use href="#podHexR" fill="none" stroke="url(#gPlateHi)" stroke-width="8" opacity="0.6"/></g>
+  <g transform="translate(752,600) scale(0.48) translate(-752,-600)"><use href="#podHexR" fill="none" stroke="url(#gPlateHi)" stroke-width="6" opacity="0.45"/></g>
+  <polygon points="752,582 768,591.5 768,608.5 752,618 736,608.5 736,591.5" fill="url(#gCore)" stroke="#241603" stroke-width="2"/>
+  <ellipse cx="752" cy="600" rx="55" ry="55" fill="url(#gAmberGlow)" opacity="0.2" filter="url(#b30)"/>
+
+  <!-- cinematic rim lights -->
+  <path d="M 700 250 Q 764 440 690 640" fill="none" stroke="#ff8c00" stroke-width="5" opacity="0.55" filter="url(#b4)"/>
+  <path d="M 348 858 Q 450 890 552 858" fill="none" stroke="#ff8c00" stroke-width="4" opacity="0.45" filter="url(#b4)"/>
+  <path d="M 200 262 Q 146 430 212 614" fill="none" stroke="#cfe0ff" stroke-width="3" opacity="0.32" filter="url(#b4)"/>
+  <path d="M 452 68 Q 600 76 700 180" fill="none" stroke="#cfe0ff" stroke-width="2.5" opacity="0.3" filter="url(#b4)"/>
+
+  <!-- surface grain -->
+  <rect width="900" height="1100" filter="url(#grain)" opacity="0.05"/>
+
+  <!-- micro screws -->
+  <g fill="#0c0e13" stroke="#565c66" stroke-width="1.5">
+    <circle cx="274" cy="288" r="5"/>
+    <circle cx="626" cy="288" r="5"/>
+    <circle cx="260" cy="608" r="5"/>
+    <circle cx="640" cy="608" r="5"/>
+  </g>
+</svg>
