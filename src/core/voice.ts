@@ -150,8 +150,10 @@ export function recognize(handlers: RecognizeHandlers = {}): Promise<string> {
 /* ------------------------------------------------------------------ */
 
 export interface DictationHandlers {
-  /** full text so far: whatever was in the composer + everything said */
-  onPartial?: (text: string) => void;
+  /** full text so far: whatever was in the composer + everything said.
+   *  `isFinal` is true when Chrome closed the utterance — that is the safe
+   *  moment to act on the text (e.g. auto-send). */
+  onPartial?: (text: string, isFinal: boolean) => void;
   onStart?: () => void;
   /** non-fatal message while the session is still running */
   onNotice?: (msg: string) => void;
@@ -172,6 +174,9 @@ interface DictationSession {
   restartTimer: ReturnType<typeof setTimeout> | null;
   /** consecutive hard failures (network / capture) before giving up */
   failures: number;
+  /** Android sometimes swallows the first start() — tracked by a watchdog */
+  everStarted: boolean;
+  watchdog: ReturnType<typeof setTimeout> | null;
 }
 
 let session: DictationSession | null = null;
@@ -183,8 +188,8 @@ function joinText(a: string, b: string): string {
   return `${a} ${b}`;
 }
 
-function emit(s: DictationSession): void {
-  s.handlers.onPartial?.(joinText(s.base, joinText(s.finals, s.interim)));
+function emit(s: DictationSession, isFinal: boolean): void {
+  s.handlers.onPartial?.(joinText(s.base, joinText(s.finals, s.interim)), isFinal);
 }
 
 export function isDictating(): boolean {
@@ -200,7 +205,7 @@ export function resetDictation(text = ''): void {
   session.base = text;
   session.finals = '';
   session.interim = '';
-  emit(session);
+  emit(session, false);
 }
 
 function teardown(s: DictationSession): void {
@@ -208,6 +213,10 @@ function teardown(s: DictationSession): void {
   if (s.restartTimer) {
     clearTimeout(s.restartTimer);
     s.restartTimer = null;
+  }
+  if (s.watchdog) {
+    clearTimeout(s.watchdog);
+    s.watchdog = null;
   }
   s.rec.onresult = null;
   s.rec.onerror = null;
@@ -254,6 +263,8 @@ export function startDictation(handlers: DictationHandlers = {}, base = ''): boo
     wanted: true,
     restartTimer: null,
     failures: 0,
+    everStarted: false,
+    watchdog: null,
   };
   session = s;
 
@@ -275,20 +286,34 @@ export function startDictation(handlers: DictationHandlers = {}, base = ''): boo
     handlers.onError?.(msg);
   };
 
-  rec.onstart = () => handlers.onStart?.();
+  rec.onstart = () => {
+    s.everStarted = true;
+    s.failures = 0;
+    if (s.watchdog) {
+      clearTimeout(s.watchdog);
+      s.watchdog = null;
+    }
+    handlers.onStart?.();
+  };
 
   rec.onresult = (e: SREvent) => {
     s.failures = 0; // any successful audio means the session is healthy
+    s.everStarted = true;
     let interim = '';
+    let sawFinal = false;
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
       const chunk = (r[0]?.transcript ?? '').trim();
       if (!chunk) continue;
-      if (r.isFinal) s.finals = joinText(s.finals, chunk);
-      else interim = joinText(interim, chunk);
+      if (r.isFinal) {
+        s.finals = joinText(s.finals, chunk);
+        sawFinal = true;
+      } else {
+        interim = joinText(interim, chunk);
+      }
     }
     s.interim = interim;
-    emit(s);
+    emit(s, sawFinal);
   };
 
   rec.onerror = (e: SRErrorEvent) => {
@@ -318,6 +343,9 @@ export function startDictation(handlers: DictationHandlers = {}, base = ''): boo
           restart(600 * s.failures);
         }
         break;
+      case 'language-not-supported':
+        fatal(`This browser has no speech engine for ${s.rec.lang}. Change the browser language or type instead.`);
+        break;
       default:
         s.failures += 1;
         if (s.failures >= 4) fatal(`Speech recognition error: ${e.error}`);
@@ -336,6 +364,18 @@ export function startDictation(handlers: DictationHandlers = {}, base = ''): boo
     fatal('Could not start the microphone. Close other apps using it and retry.');
     return false;
   }
+
+  // Android Chrome occasionally swallows the very first start() with no
+  // onstart, no onend and no error — retry once if nothing happens.
+  s.watchdog = setTimeout(() => {
+    s.watchdog = null;
+    if (!s.wanted || s.everStarted) return;
+    try {
+      rec.start();
+    } catch {
+      /* already running */
+    }
+  }, 1600);
   return true;
 }
 

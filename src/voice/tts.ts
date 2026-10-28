@@ -255,16 +255,17 @@ const CAPS: Record<TTSProviderId, TTSCaps> = {
     cloning: true,
     voiceSelection: true,
     needsKey: true,
-    cors: 'unknown',
+    cors: 'no',
     verified: false,
     defaultEndpoint: 'https://api.fish.audio',
     defaultVoice: 'd399246b32d54eefbee89818d8174a9e',
     defaultModel: 's2.1-pro',
     notes: [
-      'Documented TTS call: POST {endpoint}/v1/tts with "Authorization: Bearer <key>", an optional "model" header and a JSON body of { text, reference_id, format, sample_rate }. The response is raw audio bytes (mp3 by default).',
-      'Documented cloning workflow: POST {endpoint}/model (multipart: type=tts, title, train_mode=fast, voices=<file>) returns a model id — paste it in as the voice id or use the CLONE control below.',
-      'CORS for api.fish.audio is NOT documented by the vendor, so direct browser calls are UNVERIFIED — if the call is blocked, point ENDPOINT at your own gateway.',
-      'Needs a Fish Audio API key (keys are stored on this device only). NOT yet tested end-to-end from this app — no credentials available here.',
+      'Direct browser calls are BLOCKED — measured against api.fish.audio: the CORS preflight 404s and no access-control-allow-origin is sent.',
+      'So the default ENDPOINT is empty = use this deployment\'s own same-origin voice gateway (/api/fish/tts), which injects the key server-side from the FISH_API_KEY secret. Nothing secret lives in the browser.',
+      'Documented protocol behind the gateway: POST /v1/tts with "Authorization: Bearer <key>", an optional "model" header and a JSON body of { text, reference_id, format }; response is raw audio bytes.',
+      'Cloning uses the documented POST /model multipart workflow (type=tts, title, train_mode=fast, voices) through the same gateway.',
+      'Set ENDPOINT to https://api.fish.audio to bypass the gateway (that path needs a key pasted below) or to your own proxy.',
     ],
   },
 };
@@ -552,23 +553,27 @@ export const fishAudioProvider: TTSProvider = {
     const voice = cfg.voiceId.trim() || CAPS.fishaudio.defaultVoice;
     if (!voice) throw new TtsError('bad_request', 'Fish Audio: no voice id set. Paste a Fish Audio voice id and save it in Settings.');
 
-    const base = (cfg.endpoint || CAPS.fishaudio.defaultEndpoint).replace(/\/+$/, '');
-    if (!base) throw new TtsError('bad_request', 'Fish Audio: no endpoint configured.');
+    // fish.audio sends NO CORS headers (measured: preflight 404s), so a
+    // browser cannot call it directly. With no ENDPOINT configured we use
+    // this deployment's own same-origin gateway (/api/fish/tts), which
+    // injects the key from the FISH_API_KEY secret on the server.
+    const custom = (cfg.endpoint || '').replace(/\/+$/, '');
+    const usingGateway = !custom;
+    const url = usingGateway ? '/api/fish/tts' : `${custom}/v1/tts`;
 
-    // Documented Fish Audio TTS protocol (docs.fish.audio):
-    //   POST {endpoint}/v1/tts
-    //   Authorization: Bearer <key>   model: <model id>   (header, not body)
-    //   body: { text, reference_id, format, sample_rate, ... }
-    //   response: raw audio bytes (mp3 by default)
-    const isVendor = isDefaultEndpoint('fishaudio', base);
-    if (isVendor && !cfg.apiKey.trim()) {
+    const key = cfg.apiKey.trim();
+    if (!usingGateway && isDefaultEndpoint('fishaudio', custom) && !key) {
       throw new TtsError(
         'no_key',
-        'Fish Audio: no API key. Add your Fish Audio API key in Settings (stored on this device only), or point ENDPOINT at your own gateway.',
+        "Fish Audio: no API key. Leave ENDPOINT empty to use this site's built-in voice gateway, or paste a Fish Audio key to call fish.audio directly.",
       );
     }
 
     const model = cfg.model.trim() || CAPS.fishaudio.defaultModel;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (model) headers.model = model;
+    if (!usingGateway && key) headers.Authorization = `Bearer ${key}`;
+
     // Deliberately only documented fields. Pitch/rate shaping stays in this
     // app's own FX chain (presets.ts / chain.ts) instead of guessing at
     // provider-side prosody schemas.
@@ -580,13 +585,9 @@ export const fishAudioProvider: TTSProvider = {
 
     let res: Response;
     try {
-      res = await fetch(`${base}/v1/tts`, {
+      res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(cfg.apiKey.trim() ? { Authorization: `Bearer ${cfg.apiKey.trim()}` } : {}),
-          ...(model ? { model } : {}),
-        },
+        headers,
         body,
         signal: handlers.signal,
       });
@@ -594,17 +595,26 @@ export const fishAudioProvider: TTSProvider = {
       if (err instanceof DOMException && err.name === 'AbortError') throw err;
       throw new TtsError(
         'network',
-        'Fish Audio request failed — no network, or fish.audio blocking browser (CORS) calls. Point ENDPOINT at a gateway if direct calls are refused.',
+        usingGateway
+          ? 'The voice gateway on this deployment could not be reached. Reload the page and try again.'
+          : 'Fish Audio request failed — no network, or the endpoint refuses browser calls.',
       );
     }
 
     if (!res.ok) {
       const detail = await readBody(res);
+      if (res.status === 502 && /FISH_API_KEY/i.test(detail)) {
+        throw new TtsError(
+          'no_key',
+          "This deployment's voice gateway has no FISH_API_KEY set. Add it on the site (Sites → Secrets) and try again.",
+          res.status,
+        );
+      }
       if (res.status === 401 || res.status === 403) {
         throw new TtsError('auth', `Fish Audio: access rejected (HTTP ${res.status}). Check the API key and the voice id.`, res.status);
       }
       if (res.status === 404) {
-        throw new TtsError('not_found', `Fish Audio: HTTP 404 at ${base}/v1/tts — check the endpoint path.`, res.status);
+        throw new TtsError('not_found', `Fish Audio: HTTP 404 at ${url} — check the endpoint path.`, res.status);
       }
       if (res.status === 429) {
         throw new TtsError('rate_limited', 'Fish Audio: rate limited (HTTP 429). Try again shortly.', res.status);

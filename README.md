@@ -63,7 +63,9 @@ retheme is one block of variables.
   (Chrome on Android): **live continuous dictation**. Tap the mic and keep
   talking — words land in the composer as you speak and the session stays
   live until you tap the mic again (a pause only restarts recognition, it
-  does not end the session). Nothing is auto-sent; you read it, then send.
+  does not end the session). When you stop talking, the dictated text is
+  **sent automatically** after a short pause, so a whole conversation can
+  happen hands-free; the mic keeps listening for the next thing you say.
   Falls back to clear error text where the browser has no recognition.
 - **Speech output** — the **cinematic voice engine** (see `src/voice/`):
   - browser `SpeechSynthesis` as the always-available, offline fallback,
@@ -95,7 +97,7 @@ OpenCode Zen free models need **no key**: `mimo-v2.6-flash-free`,
 | Reference upload, validation, playback, A/B, measurements | REAL — DIAGNOSTICS → VOICE REFERENCE LAB |
 | Browser SpeechSynthesis fallback | REAL — works offline, no key, no FX chain (impossible by design) |
 | ElevenLabs TTS + voice cloning | CODED, **UNTESTED** — needs your API key or gateway; direct browser CORS is undocumented by the vendor |
-| Fish Audio TTS + voice cloning | CODED, **UNTESTED** — documented `POST /v1/tts` (Bearer key, `model` header, `reference_id`) and `POST /model` cloning; needs your API key; fish.audio does not document browser CORS |
+| Fish Audio TTS + voice cloning | LIVE PATH via the built-in gateway — fish.audio sends no CORS headers (measured), so the site's own Worker (`sites/worker.js`) proxies `POST /v1/tts` and `POST /model` at `/api/fish/*` and injects `FISH_API_KEY`. Needs that secret; **not yet exercised with a live key** |
 | OpenAI TTS | CODED, **UNTESTED** — needs your API key or gateway; no cloning (stock voices only) |
 | Local OpenAI-compatible TTS server | CODED, **UNTESTED** — point ENDPOINT at piper/openedai-speech/XTTS |
 

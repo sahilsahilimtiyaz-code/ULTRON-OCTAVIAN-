@@ -333,12 +333,20 @@ export async function cloneVoice(params: CloneParams): Promise<CloneResult> {
     throw new TtsError('bad_request', `${missing.length} reference clip(s) have no audio data left — re-upload them.`);
   }
 
-  const base = (params.endpoint || defaultEndpoint(params.provider)).replace(/\/+$/, '');
-  if (!base) throw new TtsError('bad_request', 'No endpoint configured for cloning.');
-  if (!params.apiKey && base === defaultEndpoint(params.provider).replace(/\/+$/, '')) {
+  // fish.audio sends no CORS headers, so an empty ENDPOINT means "use this
+  // deployment's own gateway" (/api/fish/model) instead of the vendor URL.
+  const isFish = params.provider === 'fishaudio';
+  const customEp = (params.endpoint || '').replace(/\/+$/, '');
+  const base = isFish
+    ? customEp
+    : (params.endpoint || defaultEndpoint(params.provider)).replace(/\/+$/, '');
+  const vendorBase = defaultEndpoint(params.provider).replace(/\/+$/, '');
+  const onVendor = isFish ? base === vendorBase : base === vendorBase && !!base;
+  if (!isFish && !base) throw new TtsError('bad_request', 'No endpoint configured for cloning.');
+  if (onVendor && !params.apiKey) {
     throw new TtsError(
       'no_key',
-      `Cloning needs a ${params.provider === 'fishaudio' ? 'Fish Audio' : 'ElevenLabs'} API key (or your own gateway endpoint that holds one). Keys are never stored in this code — add yours in Settings, or point ENDPOINT at your gateway.`,
+      `Cloning needs a ${isFish ? 'Fish Audio' : 'ElevenLabs'} API key (or your own gateway endpoint that holds one). Keys are never stored in this code — leave ENDPOINT empty to use this site's gateway, or add a key in Settings.`,
     );
   }
 
@@ -367,9 +375,12 @@ export async function cloneVoice(params: CloneParams): Promise<CloneResult> {
       : { Authorization: `Bearer ${params.apiKey}` }
     : {};
 
+  // same-origin gateway when no endpoint is configured for fish audio
+  const target = isFish && !base ? '/api/fish/model' : `${base}${path}`;
+
   let res: Response;
   try {
-    res = await fetch(`${base}${path}`, {
+    res = await fetch(target, {
       method: 'POST',
       headers: authHeaders,
       body: form,
@@ -377,12 +388,21 @@ export async function cloneVoice(params: CloneParams): Promise<CloneResult> {
   } catch {
     throw new TtsError(
       'network',
-      'Cloning request failed — no network, or the provider blocked this browser (CORS). Use a gateway endpoint.',
+      isFish && !base
+        ? 'The voice gateway on this deployment could not be reached. Reload the page and try again.'
+        : 'Cloning request failed — no network, or the provider blocked this browser (CORS). Use a gateway endpoint.',
     );
   }
 
   const text = await res.text();
   if (!res.ok) {
+    if (res.status === 502 && /FISH_API_KEY/i.test(text)) {
+      throw new TtsError(
+        'no_key',
+        "This deployment's voice gateway has no FISH_API_KEY set. Add it on the site (Sites → Secrets) and try again.",
+        res.status,
+      );
+    }
     if (res.status === 401 || res.status === 403) {
       throw new TtsError('auth', `Cloning rejected (HTTP ${res.status}) — the API key is not valid for this account.`, res.status);
     }

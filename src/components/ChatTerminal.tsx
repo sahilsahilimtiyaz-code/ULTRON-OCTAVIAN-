@@ -38,9 +38,51 @@ export default function ChatTerminal() {
 
   const busy = thinking || speaking;
 
+  /* refs so the auto-send timer always reads the latest values */
+  const draftRef = useRef('');
+  const busyRef = useRef(false);
+  const micRef = useRef(false);
+  const announced = useRef(false);
+  const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { draftRef.current = draft; }, [draft]);
+  useEffect(() => { busyRef.current = thinking || speaking; }, [thinking, speaking]);
+  useEffect(() => { micRef.current = micActive; }, [micActive]);
+  useEffect(() => () => { if (sendTimer.current) clearTimeout(sendTimer.current); }, []);
+
+  const clearAutoSend = () => {
+    if (sendTimer.current) {
+      clearTimeout(sendTimer.current);
+      sendTimer.current = null;
+    }
+  };
+
+  /** hands-free: send whatever was dictated once you stop talking */
+  const fireSend = () => {
+    sendTimer.current = null;
+    if (!micRef.current) return;
+    const text = draftRef.current.trim();
+    if (!text) return;
+    if (busyRef.current) {
+      // a reply is still playing — try again once ULTRON is done
+      sendTimer.current = setTimeout(fireSend, 900);
+      return;
+    }
+    setDraft('');
+    setPartial(null);
+    resetDictation('');
+    void sendUserMessage(text);
+  };
+
+  const scheduleAutoSend = () => {
+    clearAutoSend();
+    sendTimer.current = setTimeout(fireSend, 1500);
+  };
+
   const submit = () => {
     const text = draft.trim();
     if (!text || busy) return;
+    clearAutoSend();
     setDraft('');
     setPartial(null);
     // the mic keeps running — just restart the text it composes onto
@@ -49,6 +91,7 @@ export default function ChatTerminal() {
   };
 
   const endListening = () => {
+    clearAutoSend();
     stopDictation();
     stopMicMeter();
     setPartial(null);
@@ -67,20 +110,29 @@ export default function ChatTerminal() {
     setState({ micActive: true, voiceStatus: 'listening', voiceError: null });
     setPulseMode('listening');
     setFace('listening');
+    announced.current = false;
     // best-effort real mic energy for the waveform/jaw
     void startMicMeter();
 
     const started = startDictation(
       {
-        onStart: () => setState({ voiceStatus: 'listening' }),
+        onStart: () => {
+          setState({ voiceStatus: 'listening' });
+          if (!announced.current) {
+            announced.current = true;
+            toast('MIC LIVE — just speak, it sends when you finish', 2600);
+          }
+        },
         // full text so far (typed + dictated) lands straight in the composer
-        onPartial: (t) => {
+        onPartial: (t, isFinal) => {
           setDraft(t);
           setPartial(t.trim() ? t : null);
           bumpPulse(0.4);
+          if (isFinal) scheduleAutoSend();
         },
         onNotice: (msg) => toast(`VOICE INPUT // ${msg}`, 2200),
         onError: (msg) => {
+          clearAutoSend();
           stopMicMeter();
           setPartial(null);
           setPulseMode('off');
@@ -93,6 +145,7 @@ export default function ChatTerminal() {
       draft,
     );
     if (!started) {
+      clearAutoSend();
       stopMicMeter();
       const msg = 'Speech recognition is not available in this browser. Chrome on Android works best — or type instead.';
       setPulseMode('off');
