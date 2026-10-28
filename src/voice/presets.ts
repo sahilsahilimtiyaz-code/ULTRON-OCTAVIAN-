@@ -14,7 +14,8 @@
  * Nothing in this file talks to the Web Audio API — values only.
  */
 
-import type { TTSProviderId } from './tts';
+import type { TTSProviderId, TTSCaps } from './tts';
+import { capsOf } from './tts';
 
 export type PresetId = 'ultron_prime' | 'bypass';
 
@@ -222,10 +223,19 @@ export interface VoiceSettings {
   testPhraseId: string;
 }
 
+type CapsOf = (p: TTSProviderId) => TTSCaps;
+/** every provider ships its own default voice id (empty for the browser) */
+export function defaultProviderVoice(provider: TTSProviderId | string): string {
+  try {
+    return (capsOf as CapsOf)(provider as TTSProviderId).defaultVoice ?? '';
+  } catch {
+    return '';
+  }
+}
 export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   provider: 'browser',
   preset: 'ultron_prime',
-  voiceId: '',
+  voiceId: defaultProviderVoice('browser'),
   model: '',
   endpoint: '',
   apiKey: '',
@@ -244,4 +254,3 @@ export function normalizeVoiceSettings(raw: Partial<VoiceSettings> | undefined |
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_VOICE_SETTINGS };
   return { ...DEFAULT_VOICE_SETTINGS, ...raw };
 }
-

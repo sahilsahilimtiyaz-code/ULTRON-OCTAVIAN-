@@ -84,6 +84,16 @@ export const CLONE_LIMITS: Record<TTSProviderId, CloneLimits> = {
     recommendedSec: 60,
     multipleClips: true, // one request can carry several files
   },
+  fishaudio: {
+    ...GENERIC_LIMITS,
+    maxBytes: 20 * 1024 * 1024,
+    minSec: 3,
+    maxSec: 300,
+    recommendedSec: 30,
+    // Documented workflow accepts one or more uploaded voice files in a
+    // single multipart request (POST /model).
+    multipleClips: true,
+  },
   openai: { ...GENERIC_LIMITS, minSec: 0 },
   local: GENERIC_LIMITS,
 };
@@ -93,7 +103,7 @@ export function cloneLimits(id: TTSProviderId): CloneLimits {
 }
 
 export function cloningSupported(id: TTSProviderId): boolean {
-  return id === 'elevenlabs';
+  return id === 'elevenlabs' || id === 'fishaudio';
 }
 
 function extOf(name: string): string {
@@ -310,11 +320,11 @@ export async function cloneVoice(params: CloneParams): Promise<CloneResult> {
       material.warnings[0] ?? 'Not enough usable reference material for a clone.',
     );
   }
-  if (params.provider !== 'elevenlabs') {
+  if (params.provider !== 'elevenlabs' && params.provider !== 'fishaudio') {
     const capsNote =
       params.provider === 'openai'
         ? 'OpenAI TTS offers fixed stock voices only — cloning is not part of that API.'
-        : 'This app implements only the documented ElevenLabs cloning workflow. Your local server may support cloning, but it needs its own client.';
+        : 'This app implements the documented ElevenLabs and Fish Audio cloning workflows. Your local server may support cloning, but it needs its own client.';
     throw new TtsError('unsupported', `Voice cloning is not available for this provider. ${capsNote}`);
   }
 
@@ -323,27 +333,45 @@ export async function cloneVoice(params: CloneParams): Promise<CloneResult> {
     throw new TtsError('bad_request', `${missing.length} reference clip(s) have no audio data left — re-upload them.`);
   }
 
-  const base = (params.endpoint || defaultEndpoint('elevenlabs')).replace(/\/+$/, '');
+  const base = (params.endpoint || defaultEndpoint(params.provider)).replace(/\/+$/, '');
   if (!base) throw new TtsError('bad_request', 'No endpoint configured for cloning.');
-  if (!params.apiKey && base === defaultEndpoint('elevenlabs').replace(/\/+$/, '')) {
+  if (!params.apiKey && base === defaultEndpoint(params.provider).replace(/\/+$/, '')) {
     throw new TtsError(
       'no_key',
-      'Cloning needs an ElevenLabs API key (or your own gateway endpoint that holds one). Keys are never stored in this code — add yours in Settings, or point ENDPOINT at your gateway.',
+      `Cloning needs a ${params.provider === 'fishaudio' ? 'Fish Audio' : 'ElevenLabs'} API key (or your own gateway endpoint that holds one). Keys are never stored in this code — add yours in Settings, or point ENDPOINT at your gateway.`,
     );
   }
 
   const form = new FormData();
-  form.append('name', params.name || `ULTRON ref ${new Date().toISOString().slice(0, 10)}`);
-  form.append('description', params.description ?? 'ULTRON AI reference material (user supplied, authorized).');
-  for (const c of params.clips) {
-    form.append('files', new File([c.bytes as ArrayBuffer], c.name, { type: c.mime }));
+  const title = params.name || `ULTRON ref ${new Date().toISOString().slice(0, 10)}`;
+  if (params.provider === 'elevenlabs') {
+    form.append('name', title);
+    form.append('description', params.description ?? 'ULTRON AI reference material (user supplied, authorized).');
+    for (const c of params.clips) {
+      form.append('files', new File([c.bytes as ArrayBuffer], c.name, { type: c.mime }));
+    }
+  } else {
+    // Fish Audio: POST /model (multipart) -> model id used as reference_id
+    form.append('type', 'tts');
+    form.append('title', title);
+    form.append('train_mode', 'fast');
+    for (const c of params.clips) {
+      form.append('voices', new File([c.bytes as ArrayBuffer], c.name, { type: c.mime }));
+    }
   }
+
+  const path = params.provider === 'elevenlabs' ? '/v1/voices/add' : '/model';
+  const authHeaders: Record<string, string> = params.apiKey
+    ? params.provider === 'elevenlabs'
+      ? { 'xi-api-key': params.apiKey }
+      : { Authorization: `Bearer ${params.apiKey}` }
+    : {};
 
   let res: Response;
   try {
-    res = await fetch(`${base}/v1/voices/add`, {
+    res = await fetch(`${base}${path}`, {
       method: 'POST',
-      headers: params.apiKey ? { 'xi-api-key': params.apiKey } : undefined,
+      headers: authHeaders,
       body: form,
     });
   } catch {
@@ -379,10 +407,12 @@ export async function cloneVoice(params: CloneParams): Promise<CloneResult> {
   } catch {
     throw new TtsError('bad_response', 'Provider returned an unreadable response while creating the voice.');
   }
-  const obj = payload as { voice_id?: string; voiceId?: string };
-  const voiceId = obj.voice_id ?? obj.voiceId;
+  const obj = payload as { voice_id?: string; voiceId?: string; id?: string };
+  // Fish Audio returns { id: "<model id>" } — that id is the reference_id
+  // later passed to /v1/tts.
+  const voiceId = obj.voice_id ?? obj.voiceId ?? obj.id;
   if (!voiceId) {
-    throw new TtsError('bad_response', 'Provider did not return a voice_id — no voice was created.');
+    throw new TtsError('bad_response', 'Provider did not return a voice id — no voice was created.');
   }
   return { voiceId, raw: payload };
 }

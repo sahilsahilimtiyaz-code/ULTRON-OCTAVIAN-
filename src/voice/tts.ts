@@ -20,7 +20,7 @@
  * gateway. Failures surface as readable errors instead of silent nothing.
  */
 
-export type TTSProviderId = 'browser' | 'elevenlabs' | 'openai' | 'local';
+export type TTSProviderId = 'browser' | 'elevenlabs' | 'openai' | 'local' | 'fishaudio';
 
 export interface TTSCaps {
   id: TTSProviderId;
@@ -161,6 +161,8 @@ export function defaultEndpoint(id: TTSProviderId): string {
       return 'https://api.openai.com';
     case 'local':
       return 'http://localhost:8000';
+    case 'fishaudio':
+      return 'https://api.fish.audio';
     default:
       return '';
   }
@@ -245,10 +247,33 @@ const CAPS: Record<TTSProviderId, TTSCaps> = {
       'Not yet tested end-to-end (no local server available in this environment).',
     ],
   },
+  fishaudio: {
+    id: 'fishaudio',
+    label: 'Fish Audio (Fish Speech)',
+    bufferAudio: true,
+    providerStreaming: false,
+    cloning: true,
+    voiceSelection: true,
+    needsKey: true,
+    cors: 'unknown',
+    verified: false,
+    defaultEndpoint: 'https://api.fish.audio',
+    defaultVoice: 'd399246b32d54eefbee89818d8174a9e',
+    defaultModel: 's2.1-pro',
+    notes: [
+      'Documented TTS call: POST {endpoint}/v1/tts with "Authorization: Bearer <key>", an optional "model" header and a JSON body of { text, reference_id, format, sample_rate }. The response is raw audio bytes (mp3 by default).',
+      'Documented cloning workflow: POST {endpoint}/model (multipart: type=tts, title, train_mode=fast, voices=<file>) returns a model id — paste it in as the voice id or use the CLONE control below.',
+      'CORS for api.fish.audio is NOT documented by the vendor, so direct browser calls are UNVERIFIED — if the call is blocked, point ENDPOINT at your own gateway.',
+      'Needs a Fish Audio API key (keys are stored on this device only). NOT yet tested end-to-end from this app — no credentials available here.',
+    ],
+  },
 };
 
 export function capsOf(id: TTSProviderId): TTSCaps {
   return CAPS[id] ?? CAPS.browser;
+}
+export function capsOfString(id: string): TTSCaps {
+  return capsOf(id as TTSProviderId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -400,6 +425,12 @@ async function requestAudio(
   return buf;
 }
 
+/** true when `base` is the vendor's own default endpoint for this provider. */
+function isDefaultEndpoint(id: TTSProviderId, base: string): boolean {
+  const norm = (s: string) => s.replace(/\/+$/, '').toLowerCase();
+  return norm(base) === norm(defaultEndpoint(id));
+}
+
 /** true when the user pointed the app at their own endpoint (gateway/local). */
 function isCustomEndpoint(cfg: TTSConfig): boolean {
   const ep = cfg.endpoint.replace(/\/+$/, '').toLowerCase();
@@ -511,6 +542,83 @@ export const openAiProvider: TTSProvider = {
   },
 };
 
+export const fishAudioProvider: TTSProvider = {
+  id: 'fishaudio',
+  caps: () => CAPS.fishaudio,
+  cancel() {
+    activeAbort?.abort();
+  },
+  async synthesize(text, cfg, handlers) {
+    const voice = cfg.voiceId.trim() || CAPS.fishaudio.defaultVoice;
+    if (!voice) throw new TtsError('bad_request', 'Fish Audio: no voice id set. Paste a Fish Audio voice id and save it in Settings.');
+
+    const base = (cfg.endpoint || CAPS.fishaudio.defaultEndpoint).replace(/\/+$/, '');
+    if (!base) throw new TtsError('bad_request', 'Fish Audio: no endpoint configured.');
+
+    // Documented Fish Audio TTS protocol (docs.fish.audio):
+    //   POST {endpoint}/v1/tts
+    //   Authorization: Bearer <key>   model: <model id>   (header, not body)
+    //   body: { text, reference_id, format, sample_rate, ... }
+    //   response: raw audio bytes (mp3 by default)
+    const isVendor = isDefaultEndpoint('fishaudio', base);
+    if (isVendor && !cfg.apiKey.trim()) {
+      throw new TtsError(
+        'no_key',
+        'Fish Audio: no API key. Add your Fish Audio API key in Settings (stored on this device only), or point ENDPOINT at your own gateway.',
+      );
+    }
+
+    const model = cfg.model.trim() || CAPS.fishaudio.defaultModel;
+    // Deliberately only documented fields. Pitch/rate shaping stays in this
+    // app's own FX chain (presets.ts / chain.ts) instead of guessing at
+    // provider-side prosody schemas.
+    const body = JSON.stringify({
+      text,
+      reference_id: voice,
+      format: 'mp3',
+    });
+
+    let res: Response;
+    try {
+      res = await fetch(`${base}/v1/tts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(cfg.apiKey.trim() ? { Authorization: `Bearer ${cfg.apiKey.trim()}` } : {}),
+          ...(model ? { model } : {}),
+        },
+        body,
+        signal: handlers.signal,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+      throw new TtsError(
+        'network',
+        'Fish Audio request failed — no network, or fish.audio blocking browser (CORS) calls. Point ENDPOINT at a gateway if direct calls are refused.',
+      );
+    }
+
+    if (!res.ok) {
+      const detail = await readBody(res);
+      if (res.status === 401 || res.status === 403) {
+        throw new TtsError('auth', `Fish Audio: access rejected (HTTP ${res.status}). Check the API key and the voice id.`, res.status);
+      }
+      if (res.status === 404) {
+        throw new TtsError('not_found', `Fish Audio: HTTP 404 at ${base}/v1/tts — check the endpoint path.`, res.status);
+      }
+      if (res.status === 429) {
+        throw new TtsError('rate_limited', 'Fish Audio: rate limited (HTTP 429). Try again shortly.', res.status);
+      }
+      throw new TtsError('bad_response', `Fish Audio: HTTP ${res.status}${detail ? ` — ${detail.slice(0, 200)}` : ''}`, res.status);
+    }
+
+    const buf = await res.arrayBuffer();
+    if (!buf.byteLength) throw new TtsError('bad_response', 'Fish Audio: returned an empty audio body.');
+    handlers.onProgress?.({ stage: 'decoding' });
+    return { kind: 'buffer', buffer: await decode(buf, handlers) };
+  },
+};
+
 export const localProvider: TTSProvider = {
   id: 'local',
   caps: () => CAPS.local,
@@ -539,6 +647,7 @@ const PROVIDERS: Record<TTSProviderId, TTSProvider> = {
   elevenlabs: elevenLabsProvider,
   openai: openAiProvider,
   local: localProvider,
+  fishaudio: fishAudioProvider,
 };
 
 export function getTtsProvider(id: TTSProviderId | string | undefined | null): TTSProvider {

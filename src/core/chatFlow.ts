@@ -6,7 +6,7 @@
 import { addMessage, getState, setFace, setState, toast } from './store';
 import { demoReply } from './demoBrain';
 import { sendLiveChat } from './liveProvider';
-import { speak, stopSpeaking } from './voice';
+import { speak, stopSpeaking, stopDictation } from './voice';
 import { setPulseMode, bumpPulse } from './pulse';
 import type { FaceStateName } from './types';
 
@@ -36,8 +36,9 @@ export function stopAll(): void {
     abort = null;
   }
   stopSpeaking();
+  stopDictation(); // keep the mic state honest when everything is halted
   setPulseMode('off');
-  setState({ thinking: false, speaking: false, micActive: false, ttsStatus: null });
+  setState({ thinking: false, speaking: false, micActive: false, voiceStatus: 'off', ttsStatus: null });
   setFace('idle');
 }
 

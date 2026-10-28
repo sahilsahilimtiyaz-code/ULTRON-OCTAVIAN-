@@ -146,6 +146,200 @@ export function recognize(handlers: RecognizeHandlers = {}): Promise<string> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Continuous dictation — the mic stays live until it is switched off  */
+/* ------------------------------------------------------------------ */
+
+export interface DictationHandlers {
+  /** full text so far: whatever was in the composer + everything said */
+  onPartial?: (text: string) => void;
+  onStart?: () => void;
+  /** non-fatal message while the session is still running */
+  onNotice?: (msg: string) => void;
+  /** fatal — the session has stopped and will not restart */
+  onError?: (msg: string) => void;
+}
+
+interface DictationSession {
+  rec: SRInstance;
+  handlers: DictationHandlers;
+  /** text that was in the composer when the session started */
+  base: string;
+  /** final segments recognised in this session */
+  finals: string;
+  /** current interim segment */
+  interim: string;
+  wanted: boolean;
+  restartTimer: ReturnType<typeof setTimeout> | null;
+  /** consecutive hard failures (network / capture) before giving up */
+  failures: number;
+}
+
+let session: DictationSession | null = null;
+
+function joinText(a: string, b: string): string {
+  if (!a) return b;
+  if (!b) return a;
+  if (/\s$/.test(a) || /^\s/.test(b)) return a + b;
+  return `${a} ${b}`;
+}
+
+function emit(s: DictationSession): void {
+  s.handlers.onPartial?.(joinText(s.base, joinText(s.finals, s.interim)));
+}
+
+export function isDictating(): boolean {
+  return session !== null;
+}
+
+/**
+ * Reset the text a running session composes onto (e.g. after the draft was
+ * sent) without stopping the microphone.
+ */
+export function resetDictation(text = ''): void {
+  if (!session) return;
+  session.base = text;
+  session.finals = '';
+  session.interim = '';
+  emit(session);
+}
+
+function teardown(s: DictationSession): void {
+  s.wanted = false;
+  if (s.restartTimer) {
+    clearTimeout(s.restartTimer);
+    s.restartTimer = null;
+  }
+  s.rec.onresult = null;
+  s.rec.onerror = null;
+  s.rec.onend = null;
+  s.rec.onstart = null;
+  try {
+    s.rec.abort();
+  } catch {
+    /* already stopped */
+  }
+  if (session === s) session = null;
+}
+
+/** Stop the live dictation session (keeps whatever text was transcribed). */
+export function stopDictation(): void {
+  if (session) teardown(session);
+}
+
+/**
+ * Start a continuous recognition session. Chrome/Android stop a continuous
+ * session after a pause, so `onend` restarts it automatically until
+ * stopDictation() is called — that is what keeps the mic live for dictation.
+ *
+ * Returns false when the browser has no speech recognition at all.
+ */
+export function startDictation(handlers: DictationHandlers = {}, base = ''): boolean {
+  const SR = getSRClass();
+  if (!SR) return false;
+
+  stopDictation();
+
+  const rec = new SR();
+  rec.lang = navigator.language || 'en-US';
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  const s: DictationSession = {
+    rec,
+    handlers,
+    base,
+    finals: '',
+    interim: '',
+    wanted: true,
+    restartTimer: null,
+    failures: 0,
+  };
+  session = s;
+
+  const restart = (delay: number) => {
+    if (!s.wanted || s.restartTimer) return;
+    s.restartTimer = setTimeout(() => {
+      s.restartTimer = null;
+      if (!s.wanted) return;
+      try {
+        rec.start(); // throws InvalidStateError if it never fully stopped
+      } catch {
+        /* still running — ignore */
+      }
+    }, delay);
+  };
+
+  const fatal = (msg: string) => {
+    teardown(s);
+    handlers.onError?.(msg);
+  };
+
+  rec.onstart = () => handlers.onStart?.();
+
+  rec.onresult = (e: SREvent) => {
+    s.failures = 0; // any successful audio means the session is healthy
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      const chunk = (r[0]?.transcript ?? '').trim();
+      if (!chunk) continue;
+      if (r.isFinal) s.finals = joinText(s.finals, chunk);
+      else interim = joinText(interim, chunk);
+    }
+    s.interim = interim;
+    emit(s);
+  };
+
+  rec.onerror = (e: SRErrorEvent) => {
+    switch (e.error) {
+      case 'not-allowed':
+      case 'service-not-allowed':
+        fatal('Microphone permission denied. Allow mic access in the browser site settings, then try again.');
+        break;
+      case 'audio-capture':
+        fatal('No microphone available. Check that a mic is connected and not held by another app.');
+        break;
+      case 'no-speech':
+      case 'audio-capture-timeout':
+        // silence — keep listening, this is exactly the restart case
+        restart(120);
+        break;
+      case 'aborted':
+        // we abort on teardown; anything else restarts
+        if (s.wanted) restart(120);
+        break;
+      case 'network':
+        s.failures += 1;
+        if (s.failures >= 4) {
+          fatal('Speech service network error. Check your connection or type instead.');
+        } else {
+          handlers.onNotice?.('Speech service hiccup — reconnecting…');
+          restart(600 * s.failures);
+        }
+        break;
+      default:
+        s.failures += 1;
+        if (s.failures >= 4) fatal(`Speech recognition error: ${e.error}`);
+        else restart(400 * s.failures);
+    }
+  };
+
+  rec.onend = () => {
+    // Chrome ends a continuous session after a pause — resume it.
+    if (s.wanted) restart(120);
+  };
+
+  try {
+    rec.start();
+  } catch {
+    fatal('Could not start the microphone. Close other apps using it and retry.');
+    return false;
+  }
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
 /* Speech synthesis — delegated to the cinematic voice engine          */
 /* ------------------------------------------------------------------ */
 

@@ -1,11 +1,18 @@
 /**
  * INTERACTION TERMINAL — glass console, role bubbles, composer with mic + send.
- * Behaviour is unchanged: same submit path, same recognition/meter flow.
+ * The mic runs a CONTINUOUS dictation session: text lands in the composer as
+ * you speak and the session stays live until you tap the mic again.
  */
 import { useEffect, useRef, useState } from 'react';
 import { sendUserMessage, stopAll } from '../core/chatFlow';
-import { setState, useStore, setFace } from '../core/store';
-import { recognize, startMicMeter, stopMicMeter, stopSpeaking } from '../core/voice';
+import { setState, useStore, setFace, toast } from '../core/store';
+import {
+  resetDictation,
+  startDictation,
+  stopDictation,
+  startMicMeter,
+  stopMicMeter,
+} from '../core/voice';
 import { bumpPulse, setPulseMode } from '../core/pulse';
 
 function timeLabel(ts: number): string {
@@ -36,47 +43,63 @@ export default function ChatTerminal() {
     if (!text || busy) return;
     setDraft('');
     setPartial(null);
+    // the mic keeps running — just restart the text it composes onto
+    resetDictation('');
     void sendUserMessage(text);
   };
 
-  const onMic = async () => {
+  const endListening = () => {
+    stopDictation();
+    stopMicMeter();
+    setPartial(null);
+    setPulseMode('off');
+    setState({ micActive: false, voiceStatus: 'off' });
+    setFace('idle');
+  };
+
+  const onMic = () => {
     if (micActive) {
-      stopSpeaking();
-      stopMicMeter();
-      setPulseMode('off');
-      setState({ micActive: false, voiceStatus: 'off' });
-      setFace('idle');
+      // explicit switch-off: keeps whatever has been dictated in the draft
+      endListening();
       return;
     }
+
     setState({ micActive: true, voiceStatus: 'listening', voiceError: null });
     setPulseMode('listening');
     setFace('listening');
-    // best-effort real mic energy for the waveform/jaw; recognition is
-    // already running, so a failure here can never break voice input
+    // best-effort real mic energy for the waveform/jaw
     void startMicMeter();
-    try {
-      const text = await recognize({
+
+    const started = startDictation(
+      {
+        onStart: () => setState({ voiceStatus: 'listening' }),
+        // full text so far (typed + dictated) lands straight in the composer
         onPartial: (t) => {
-          setPartial(t);
+          setDraft(t);
+          setPartial(t.trim() ? t : null);
           bumpPulse(0.4);
         },
-      });
+        onNotice: (msg) => toast(`VOICE INPUT // ${msg}`, 2200),
+        onError: (msg) => {
+          stopMicMeter();
+          setPartial(null);
+          setPulseMode('off');
+          setState({ micActive: false, voiceStatus: 'error', voiceError: msg });
+          setFace('error');
+          setTimeout(() => setFace('idle'), 1800);
+          toast(`VOICE INPUT // ${msg}`, 3600);
+        },
+      },
+      draft,
+    );
+    if (!started) {
       stopMicMeter();
-      if (text) {
-        setPartial(null);
-        void sendUserMessage(text);
-      } else {
-        setState({ micActive: false, voiceStatus: 'off' });
-        setPulseMode('off');
-        setFace('idle');
-      }
-    } catch (err) {
-      stopMicMeter();
-      const msg = err instanceof Error ? err.message : String(err);
-      setState({ micActive: false, voiceStatus: 'error', voiceError: msg });
+      const msg = 'Speech recognition is not available in this browser. Chrome on Android works best — or type instead.';
       setPulseMode('off');
+      setState({ micActive: false, voiceStatus: 'unsupported', voiceError: msg });
       setFace('error');
       setTimeout(() => setFace('idle'), 1800);
+      toast(`VOICE INPUT // ${msg}`, 3600);
     }
   };
 
@@ -124,7 +147,7 @@ export default function ChatTerminal() {
         {partial && (
           <article className="msg msg-partial">
             <div className="msg-meta">
-              <span className="msg-sender">YOU · LISTENING</span>
+              <span className="msg-sender">YOU · DICTATING</span>
             </div>
             <div className="msg-text">{partial}</div>
           </article>
@@ -149,8 +172,9 @@ export default function ChatTerminal() {
           <button
             type="button"
             className={`mic-btn ${micActive ? 'mic-on' : ''}`}
-            aria-label={micActive ? 'Stop listening' : 'Start voice input'}
-            onClick={() => void onMic()}
+            aria-label={micActive ? 'Stop dictation' : 'Start live dictation'}
+            aria-pressed={micActive}
+            onClick={() => onMic()}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
@@ -162,9 +186,13 @@ export default function ChatTerminal() {
           <input
             className="cmd-input"
             type="text"
-            placeholder="Command ULTRON…"
+            placeholder={micActive ? 'Listening… speak, then press send' : 'Command ULTRON…'}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              // manual edits win: rebase the session so speech appends to it
+              if (micActive) resetDictation(e.target.value);
+            }}
             aria-label="Command input"
           />
 

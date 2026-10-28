@@ -60,11 +60,15 @@ retheme is one block of variables.
   - **NVIDIA NIM**: server reachable but blocks direct browser calls (no CORS);
     needs the small backend proxy planned for Milestone 6.
 - **Voice input** — REAL where the browser supports `SpeechRecognition`
-  (Chrome on Android). Falls back to clear error text elsewhere.
+  (Chrome on Android): **live continuous dictation**. Tap the mic and keep
+  talking — words land in the composer as you speak and the session stays
+  live until you tap the mic again (a pause only restarts recognition, it
+  does not end the session). Nothing is auto-sent; you read it, then send.
+  Falls back to clear error text where the browser has no recognition.
 - **Speech output** — the **cinematic voice engine** (see `src/voice/`):
   - browser `SpeechSynthesis` as the always-available, offline fallback,
-  - neural / local TTS providers (ElevenLabs, OpenAI-compatible, self-hosted)
-    when you add an endpoint and (optionally) a key,
+  - neural / local TTS providers (ElevenLabs, Fish Audio, OpenAI-compatible,
+    self-hosted) when you add an endpoint and (optionally) a key,
   - a **real, connected Web Audio chain** rendered offline per utterance:
     pitch shift → HPF → EQ → saturation → metallic layer → compressor →
     short reverb → limiter,
@@ -91,6 +95,7 @@ OpenCode Zen free models need **no key**: `mimo-v2.6-flash-free`,
 | Reference upload, validation, playback, A/B, measurements | REAL — DIAGNOSTICS → VOICE REFERENCE LAB |
 | Browser SpeechSynthesis fallback | REAL — works offline, no key, no FX chain (impossible by design) |
 | ElevenLabs TTS + voice cloning | CODED, **UNTESTED** — needs your API key or gateway; direct browser CORS is undocumented by the vendor |
+| Fish Audio TTS + voice cloning | CODED, **UNTESTED** — documented `POST /v1/tts` (Bearer key, `model` header, `reference_id`) and `POST /model` cloning; needs your API key; fish.audio does not document browser CORS |
 | OpenAI TTS | CODED, **UNTESTED** — needs your API key or gateway; no cloning (stock voices only) |
 | Local OpenAI-compatible TTS server | CODED, **UNTESTED** — point ENDPOINT at piper/openedai-speech/XTTS |
 

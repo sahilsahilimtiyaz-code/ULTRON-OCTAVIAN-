@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast, updateSettings, useStore } from '../core/store';
 import { voiceEngine } from '../voice/engine';
 import { capsOf, defaultEndpoint, type TTSProviderId } from '../voice/tts';
-import { PRESET_ORDER, clamp, getPreset, type VoiceSettings } from '../voice/presets';
+import { PRESET_ORDER, clamp, getPreset, defaultProviderVoice, type VoiceSettings } from '../voice/presets';
 import { TEST_PHRASES } from '../voice/analysis';
 import {
   assessMaterial,
@@ -28,7 +28,7 @@ import {
   type RefClip,
 } from '../voice/cloning';
 
-const PROVIDER_CHOICES: TTSProviderId[] = ['browser', 'elevenlabs', 'openai', 'local'];
+const PROVIDER_CHOICES: TTSProviderId[] = ['browser', 'elevenlabs', 'openai', 'local', 'fishaudio'];
 
 function fmtSec(s: number): string {
   return s >= 60 ? `${Math.floor(s / 60)}m ${(s % 60).toFixed(0)}s` : `${s.toFixed(1)}s`;
@@ -177,7 +177,13 @@ export default function VoiceEnginePanel() {
         value={voice.provider}
         onChange={(e) => {
           const id = e.target.value as TTSProviderId;
-          patch({ provider: id, endpoint: '' });
+          // keep a hand-typed voice id, otherwise fill the provider's default
+          // (e.g. Fish Audio ships with the user's saved model id)
+          const held =
+            voice.voiceId && voice.voiceId !== defaultProviderVoice(voice.provider)
+              ? voice.voiceId
+              : '';
+          patch({ provider: id, endpoint: '', voiceId: held || defaultProviderVoice(id) });
         }}
       >
         {PROVIDER_CHOICES.map((id) => (
@@ -188,7 +194,7 @@ export default function VoiceEnginePanel() {
       </select>
       <ul className="caps-list">
         <li>Audio buffer (pitch shift + FX + measurement): <b>{caps.bufferAudio ? 'YES' : 'NO'}</b></li>
-        <li>Voice cloning workflow: <b>{caps.cloning ? 'DOCUMENTED (ElevenLabs)' : 'NOT AVAILABLE'}</b></li>
+        <li>Voice cloning workflow: <b>{caps.cloning ? `DOCUMENTED (${voice.provider === 'fishaudio' ? 'Fish Audio' : 'ElevenLabs'})` : 'NOT AVAILABLE'}</b></li>
         <li>Direct browser calls: <b>{caps.cors === 'yes' ? 'ALLOWED' : caps.cors === 'no' ? 'BLOCKED' : 'UNVERIFIED'}</b></li>
         <li>End-to-end tested from this app: <b>{caps.verified ? 'YES' : 'NO — UNTESTED'}</b></li>
       </ul>
@@ -198,6 +204,9 @@ export default function VoiceEnginePanel() {
 
       <label className="fld-label" htmlFor="tts-voice">VOICE / MODEL ID</label>
       <input
+        // remount on provider switch so the field re-fills with that
+        // provider's default voice id while staying fully controlled
+        key={voice.provider}
         id="tts-voice"
         className="fld"
         value={voice.voiceId}
